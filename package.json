@@ -1,0 +1,22 @@
+{
+  "name": "starter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "start": "supervisor server.js",
+    "start:prod": "SET NODE_ENV=production& supervisor server.js",
+    "debug": "ndb server.js"
+  },
+  "author": "Rajhans",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^6.8.1",
+    "slugify": "^1.6.5",
+    "validator": "^13.7.0"
+  }
+}

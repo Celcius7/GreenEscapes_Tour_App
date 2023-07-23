@@ -1,7 +1,61 @@
+const multer = require('multer');
+const sharp = require('sharp');
 const Tour = require('./../models/tourModel');
-const APIFeatures = require('./../utils/apiFeatures');
 const catchAsync = require('./../utils/catchAsync');
+const factory = require('./../controller/handlerFactory');
 const AppError = require('./../utils/appError');
+
+const multerStorage = multer.memoryStorage();
+
+const multerFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image')) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Not an image. Please upload only images!', 400), false);
+  }
+};
+
+const upload = multer({
+  storage: multerStorage,
+  fileFilter: multerFilter,
+});
+
+exports.uploadTourImages = upload.fields([
+  { name: 'imageCover', maxCount: 1 },
+  { name: 'images', maxCount: 3 },
+]);
+
+// upload.single('image') req.file
+// upload.array('images', 5) req.files
+
+exports.resizeTourImages = catchAsync(async (req, res, next) => {
+  // console.log(req.files);
+  if (!req.files.imageCover || !req.files.images) return next();
+  // 1) Cover Image
+  req.body.imageCover = `tour-${req.params.id}-${Date.now()}-cover.jpeg`;
+  await sharp(req.files.imageCover[0].buffer)
+    .resize(2000, 1333)
+    .toFormat('jpeg')
+    .jpeg({ quality: 90 })
+    .toFile(`public/img/tours/${req.body.imageCover}`);
+
+  //2) Images
+  req.body.images = [];
+  await Promise.all(
+    req.files.images.map(async (file, i) => {
+      const filename = `tour-${req.params.id}-${Date.now()}-${i + 1}.jpeg`;
+
+      await sharp(file.buffer) //req.files.images[i].buffer
+        .resize(2000, 1333)
+        .toFormat('jpeg')
+        .jpeg({ quality: 90 })
+        .toFile(`public/img/tours/${filename}`);
+      req.body.images.push(filename);
+    })
+  );
+  console.log(req.body);
+  next();
+});
 
 exports.aliasTopTours = (req, res, next) => {
   req.query.limit = '5';
@@ -10,67 +64,15 @@ exports.aliasTopTours = (req, res, next) => {
   next();
 };
 
-exports.getAllTour = catchAsync(async (req, res, next) => {
-  const features = new APIFeatures(Tour.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
+exports.getAllTour = factory.getAll(Tour);
 
-  const tours = await features.query;
-  res
-    .status(200)
-    .json({ status: 'sucess', results: tours.length, data: { tours } });
-});
+exports.getTour = factory.getOne(Tour, { path: 'reviews' });
 
-exports.getTour = catchAsync(async (req, res, next) => {
-  const id = req.params.id;
-  const tour = await Tour.findById(id);
-  // Tour.findOne({_id : id})
+exports.createTour = factory.createOne(Tour);
 
-  if (!tour) {
-    return next(new AppError('No Tour found with that Id', 404));
-  }
-  res.status(200).json({ message: 'sucess', data: { tour: tour } });
-});
+exports.updateTour = factory.updateOne(Tour);
 
-exports.createTour = catchAsync(async (req, res, next) => {
-  const newTour = await Tour.create(req.body);
-  res.status(201).json({ stauts: 'sucess', data: { tour: newTour } });
-});
-
-// const newTour = Object.assign({ id: newId }, req.body);
-// const newTour = new Tour(req.body);
-// newTour
-//   .save()
-//   .then((doc) => {
-//     res.status(200).json({ status: 'sucess', data: { doc } });
-//   })
-//   .catch((err) => {
-//     console.log('ERROR : ', err);
-//   });
-
-exports.updateTour = catchAsync(async (req, res, next) => {
-  const id = req.params.id;
-  const tour = await Tour.findByIdAndUpdate(id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-  if (!tour) {
-    return next(new AppError('No Tour found with that Id', 404));
-  }
-
-  res.status(200).json({ status: 'sucess', data: { tour } });
-});
-
-exports.deleteTour = catchAsync(async (req, res, next) => {
-  const tour = await Tour.findByIdAndDelete(req.params.id);
-  console.log(tour);
-  if (!tour) {
-    return next(new AppError('No Tour found with that Id', 404));
-  }
-  res.status(204).json({ status: 'sucess', data: 'null' });
-});
+exports.deleteTour = factory.deleteOne(Tour);
 
 exports.getTourStats = catchAsync(async (req, res, next) => {
   const stats = await Tour.aggregate([
@@ -97,7 +99,7 @@ exports.getTourStats = catchAsync(async (req, res, next) => {
     //   $match: { _id: { $ne: 'EASY' } },
     // },
   ]);
-  res.status(200).json({ status: 'sucess', data: { stats } });
+  res.status(200).json({ status: 'success', data: { stats } });
 });
 
 exports.getMonthlyPlan = catchAsync(async (req, res, next) => {
@@ -137,5 +139,27 @@ exports.getMonthlyPlan = catchAsync(async (req, res, next) => {
       $limit: 12,
     },
   ]);
-  res.status(200).json({ status: 'sucess', data: { plan } });
+  res.status(200).json({ status: 'success', data: { plan } });
 });
+
+// const newTour = Object.assign({ id: newId }, req.body);
+// const newTour = new Tour(req.body);
+// newTour
+//   .save()
+//   .then((doc) => {
+//     res.status(200).json({ status: 'success', data: { doc } });
+//   })
+//   .catch((err) => {
+//     console.log('ERROR : ', err);
+//   });
+
+// exports.getTour = catchAsync(async (req, res, next) => {
+//   const id = req.params.id;
+//   const tour = await Tour.findById(id).populate('reviews');
+//   // Tour.findOne({_id : id})
+
+//   if (!tour) {
+//     return next(new AppError('No Tour found with that Id', 404));
+//   }
+//   res.status(200).json({ message: 'success', data: { tour: tour } });
+// });

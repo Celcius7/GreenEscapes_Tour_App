@@ -128,6 +128,7 @@ app.use('/', require('./routes/viewRoutes'));
 app.use('/api/v1/tours', require('./routes/tourRoutes'));
 app.use('/api/v1/users', require('./routes/userRoutes'));
 app.use('/api/v1/reviews', require('./routes/reviewRoute'));
+app.use('/api/v1/bookings', require('./routes/bookingRoute'));
 app.all('*', (req, res, next) => {
   // res.status(404).json({
   //   status: 'fail',

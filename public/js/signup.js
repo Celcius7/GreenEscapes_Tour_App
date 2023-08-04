@@ -1,0 +1,26 @@
+import axios from 'axios';
+import { showAlert } from './alerts';
+
+export const signup = async (name, email, password, passwordConfirm) => {
+  try {
+    const res = await axios({
+      method: 'POST',
+      url: 'http://localhost:8080/api/v1/users/signup',
+      data: {
+        name,
+        email,
+        password,
+        passwordConfirm,
+      },
+    });
+    // console.log(res);
+    if (res.data.status === 'success') {
+      showAlert('success', 'Signed Up successfully');
+      window.setTimeout(() => {
+        location.assign('/');
+      }, 1000);
+    }
+  } catch (err) {
+    showAlert('error', err.response.data.message);
+  }
+};
